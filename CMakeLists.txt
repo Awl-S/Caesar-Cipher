@@ -5,9 +5,8 @@ project(Caesar-Cipher C CXX)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
-# Устанавливаем флаги для различных конфигураций сборки
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O3 ") # -fsanitize=address,undefined -fprofile-arcs -ftest-coverage
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}  -g -O0 -fsanitize=address,undefined -fprofile-arcs -ftest-coverage")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O3")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -fsanitize=address,undefined -fprofile-arcs -ftest-coverage")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -O2 -g")
@@ -15,6 +14,18 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O2 -g")
 set(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} -Os")
 set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -Os")
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
+
+# Проверка компилятора
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(STATUS "Используется компилятор Clang")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    message(STATUS "Используется компилятор GCC")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    message(STATUS "Используется компилятор MSVC")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
+endif()
 
 # Источники для C и C++
 file(GLOB C_SOURCES "src/*.c")
@@ -31,25 +42,44 @@ if(CPP_SOURCES)
     target_include_directories(Caesar-Cipher_CPP PRIVATE ${CMAKE_SOURCE_DIR}/include)
 endif()
 
+# Проверка наличия libmicrohttpd
+find_path(MICROHTTPD_INCLUDE_DIR microhttpd.h)
 find_library(MICROHTTPD_LIBRARY NAMES microhttpd)
-if (NOT MICROHTTPD_LIBRARY)
-    message(FATAL_ERROR "libmicrohttpd не найдена. Установите libmicrohttpd-dev.")
+
+if (NOT MICROHTTPD_INCLUDE_DIR OR NOT MICROHTTPD_LIBRARY)
+    if(WIN32)
+        message(FATAL_ERROR "libmicrohttpd может быть недоступна на Windows. Убедитесь, что вы собрали её вручную.")
+    else()
+        message(FATAL_ERROR "libmicrohttpd не найдена. Установите libmicrohttpd-dev или укажите путь вручную.")
+    endif()
+else()
+    message(STATUS "libmicrohttpd найдена: ${MICROHTTPD_LIBRARY}")
+    message(STATUS "Include директория: ${MICROHTTPD_INCLUDE_DIR}")
 endif()
 
-target_link_libraries(Caesar-Cipher_C ${MICROHTTPD_LIBRARY})
-
+if(TARGET Caesar-Cipher_C)
+    target_include_directories(Caesar-Cipher_C PRIVATE ${MICROHTTPD_INCLUDE_DIR})
+    target_link_libraries(Caesar-Cipher_C ${MICROHTTPD_LIBRARY})
+endif()
 
 # Включаем CTest для тестирования
-include(CTest)
 enable_testing()
-
-# Добавление тестов
-if(TARGET Caesar-Cipher_C)
-    add_test(NAME Caesar-Cipher_C_Test COMMAND Caesar-Cipher_C)
+if(TARGET Caesar-Cipher_C OR TARGET Caesar-Cipher_CPP)
+    if(TARGET Caesar-Cipher_C)
+        add_test(NAME Caesar-Cipher_C_Test COMMAND Caesar-Cipher_C)
+    endif()
+    if(TARGET Caesar-Cipher_CPP)
+        add_test(NAME Caesar-Cipher_CPP_Test COMMAND Caesar-Cipher_CPP)
+    endif()
+else()
+    message(WARNING "Ни одна цель не создана, тесты недоступны.")
 endif()
 
-if(TARGET Caesar-Cipher_CPP)
-    add_test(NAME Caesar-Cipher_CPP_Test COMMAND Caesar-Cipher_CPP)
+# Опция для санитайзеров
+option(ENABLE_SANITIZERS "Включить AddressSanitizer и UndefinedBehaviorSanitizer" OFF)
+if(ENABLE_SANITIZERS)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,undefined")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined")
 endif()
 
 # Покрытие кода с использованием lcov и gcovr
