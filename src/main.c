@@ -51,12 +51,12 @@ int request_handler(void *cls, struct MHD_Connection *connection, const char *ur
     }
 
     int shift = atoi(shift_param);
-
     size_t text_len = strlen(text_param);
+ 
     char *text = (char *)malloc(text_len + 1);
     if (text == NULL) {
         fprintf(stderr, "Ошибка: не удалось выделить память.\n");
-        return MHD_NO;
+        return MHD_NO; // Ошибка выделения памяти
     }
 
     strncpy(text, text_param, text_len);
@@ -72,19 +72,17 @@ int request_handler(void *cls, struct MHD_Connection *connection, const char *ur
                                                                         (void *)error_message, MHD_RESPMEM_PERSISTENT);
         int ret = MHD_queue_response(connection, MHD_HTTP_NOT_FOUND, response);
         MHD_destroy_response(response);
-        free(text);  
+        free(text);  // Освобождение памяти при ошибке
         return ret;
     }
-
+    
     struct MHD_Response *response = MHD_create_response_from_buffer(strlen(text), (void *)text, MHD_RESPMEM_MUST_COPY);
-    free(text);  
+    free(text);  // Освобождение памяти после успешного использования
     int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
     MHD_destroy_response(response);
-
-    print_system_load(strlen(text_param));
+    print_system_load(text_len);
     return ret;
 }
-
 int main() {
     struct MHD_Daemon *daemon = MHD_start_daemon(
         MHD_USE_INTERNAL_POLLING_THREAD,

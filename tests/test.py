@@ -11,12 +11,13 @@ NUM_REQUESTS = 1_000_000  # Количество запросов для стр�
 CONCURRENCY = 100   # Количество параллельных потоков
 
 current_text = BASE_TEXT
+count = 0;
 
 def encrypt_request():
     """Отправляет запрос на шифрование с увеличивающимся текстом"""
     global current_text
     params = {"text": current_text, "shift": SHIFT}
-    current_text += "*";
+    # current_text += "*";
     response = requests.get(URL_ENCRYPT, params=params)
     return response.status_code, response.text
 
@@ -24,7 +25,7 @@ def decrypt_request():
     """Отправляет запрос на дешифрование с увеличивающимся текстом"""
     global current_text
     params = {"text": current_text, "shift": SHIFT}
-    current_text += "*";
+    # current_text += "*";
     response = requests.get(URL_DECRYPT, params=params)
     return response.status_code, response.text
 
